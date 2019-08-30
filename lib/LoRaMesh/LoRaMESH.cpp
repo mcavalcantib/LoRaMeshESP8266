@@ -512,8 +512,6 @@ MeshStatus_Typedef RemoteRead(uint16_t id, uint16_t* net, uint32_t* uniqueId)
 }
 
 
-
-
 uint16_t ComputeCRC(uint8_t* data_in, uint16_t length)
 {
   uint16_t i;
