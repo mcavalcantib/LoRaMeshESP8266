@@ -66,7 +66,9 @@ typedef enum
 typedef enum
 {
   MESH_OK,
-  MESH_ERROR
+  MESH_ERROR,
+  MESH_INVALID_VALUE,
+  MESH_TIMEOUT
 } MeshStatus_Typedef;
 
 /* ----- Public global variables ----- */
