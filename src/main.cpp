@@ -1,4 +1,7 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266WiFi.h>
 #include <LoRaMesh.h>
 
 uint16_t id;
@@ -30,6 +33,13 @@ SoftwareSerial* hSerialCommands = NULL;
 
 /* Received command */
 uint8_t command;
+
+// Variables to gateway function
+HTTPClient http;
+String message;
+const size_t capacity = JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(3);
+DynamicJsonDocument doc(capacity);
+JsonObject values = doc.createNestedObject("values");
 
 MeshStatus_Typedef LocalWriteConfig(uint16_t id, uint16_t net,
                                     uint32_t uniqueId) {
@@ -121,7 +131,7 @@ void setup() {
     digitalWrite(2, HIGH);  // turn the LED on (HIGH is the voltage level)
     // Configurando o módulo LoRaMesh
     delay(1000);
-    Serial.begin(9600);  /* Initialize monitor serial */
+    Serial.begin(9600); /* Initialize monitor serial */
 
     /* Initialize SoftwareSerial */
     // Pinos:
@@ -133,7 +143,7 @@ void setup() {
     // D7(13)-> Lora RX
     // hSerialTransparent = SerialTranspInit(4, 13, 9600);
 
-    /* Gets the local device ID */
+    /* Gets the local device ID*/
     if (LocalRead(&localId, &localNet, &localUniqueId) != MESH_OK)
         Serial.print("Couldn't read local ID\n\n");
     else {
@@ -146,6 +156,18 @@ void setup() {
         Serial.print("\n");
     }
 
+    WiFi.begin("MBEZERRIL", "mcb3z3rr1l!");
+    while (WiFi.status() !=
+           WL_CONNECTED) {  // Wait for the WiFI connection completion
+        delay(500);
+        Serial.println("Waiting for connection");
+    }
+    http.begin("http://192.168.0.17:9627/samples/insert");
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("Authorization",
+                   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+                   "eyJ1c2VybmFtZSI6ImFkbWluIiwiaWF0IjoxNTc0MTMzMjU3LCJleHAiOjE"
+                   "1NzQyMTk2NTd9.9vTmuqr8wTAn1WlhbLTt8XoIlnZJcgjEyJaF7iFR_nE");
     // Teste para configurar o ID
     /*if (localNet == 0) {
         Serial.println("Sending master configurations...");
@@ -197,17 +219,28 @@ void loop() {
                              10000) == MESH_OK) {
         digitalWrite(LED_BUILTIN, HIGH);
         /* Sends to monitor */
-        Serial.print("\nID: ");
-        Serial.print(remoteId);
-        Serial.println("Dado recebido: ");
-        for (int i = 0; i < payloadSize; i++)
-            Serial.println(bufferPayload[i], HEX);
+        // Serial.print("\nID: ");
+        // Serial.print(id);
+        // Serial.println(" Dado recebido: ");
+        if (command == 0x11 && bufferPayload[0]==0x23) {
+            //for (int i = 0; i < payloadSize; i++)
+            //    Serial.println(bufferPayload[i], HEX);
+            values["valuex"] = (((uint32_t)(bufferPayload[1])) | ((uint32_t)(bufferPayload[2]) << 8));
+            values["valuey"] = (((uint32_t)(bufferPayload[3])) | ((uint32_t)(bufferPayload[4]) << 8));
+            values["valuez"] = (((uint32_t)(bufferPayload[5])) | ((uint32_t)(bufferPayload[6]) << 8));
+            doc["collectionid"] = 65;
+            serializeJson(doc, message);
+            Serial.println(message);
+            int httpCode = http.POST(message);
+            message = "";
+            Serial.println(httpCode);
+        }else{
+            Serial.print("Comando não aceito: ");
+            Serial.println(command);
+            Serial.print("do ID: ");
+            Serial.print(id);
+        }
     } else {
         Serial.println("Nenhum pacote recebido");
     }
-    /*delay(3000);
-        SendDatatest();
-        Serial.println("Pacote enviado");
-        */
-    //}
 }
